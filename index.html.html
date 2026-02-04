@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The London Detective - A Workplace Mystery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(to bottom, #2c3e50, #34495e);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 900px;
+            height: 600px;
+            background: #1a1a1a;
+            border: 8px solid #8B4513;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0.7));
+            color: #f4d03f;
+            font-size: 14px;
+            border-bottom: 3px solid #8B4513;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #cluesFound {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #messageBox {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.95);
+            color: #ecf0f1;
+            padding: 20px 30px;
+            border: 3px solid #8B4513;
+            border-radius: 8px;
+            max-width: 700px;
+            text-align: center;
+            font-size: 16px;
+            line-height: 1.6;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 0 30px rgba(139, 69, 19, 0.5);
+        }
+
+        #messageBox.show {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        #startScreen, #endScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ecf0f1;
+            z-index: 30;
+            text-align: center;
+            padding: 40px;
+        }
+
+        #endScreen {
+            display: none;
+        }
+
+        h1 {
+            font-size: 48px;
+            color: #f4d03f;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+        }
+
+        h2 {
+            font-size: 32px;
+            color: #f39c12;
+            margin-bottom: 15px;
+        }
+
+        p {
+            font-size: 18px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            max-width: 700px;
+        }
+
+        button {
+            background: #8B4513;
+            color: #f4d03f;
+            border: 3px solid #f4d03f;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        button:hover {
+            background: #A0522D;
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.7);
+        }
+
+        #controls {
+            font-size: 14px;
+            color: #95a5a6;
+            margin-top: 20px;
+        }
+
+        .clue-item {
+            background: rgba(139, 69, 19, 0.3);
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-left: 4px solid #f39c12;
+            font-size: 14px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #f4d03f;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="startScreen">
+            <h1>🔍 The London Detective 🔍</h1>
+            <h2>A Workplace Mystery</h2>
+            <p>London, 1903. You are a young detective investigating the secrets of workplace excellence.</p>
+            <p>Accompanied by your loyal sheepdog companion, explore the foggy streets of London and uncover clues that will make you a great employee.</p>
+            <p><strong>Find all 8 clues hidden around the city!</strong></p>
+            <div id="controls">
+                <p><strong>Controls:</strong> Arrow Keys or WASD to move | Click near clues to investigate</p>
+            </div>
+            <button onclick="startGame()">Begin Investigation</button>
+        </div>
+
+        <div id="endScreen">
+            <h1>🎩 Case Solved! 🎩</h1>
+            <h2>Congratulations, Detective!</h2>
+            <p id="finalMessage"></p>
+            <div id="cluesList"></div>
+            <button onclick="location.reload()">New Investigation</button>
+        </div>
+
+        <div id="ui">
+            <div id="cluesFound">Clues Found: 0/8</div>
+            <div style="color: #95a5a6;">Use Arrow Keys or WASD to explore London</div>
+        </div>
+
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        
+        <div id="messageBox"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Audio Context for sound effects
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // Sound effects
+        function playSound(frequency, duration, type = 'sine') {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function playWalkSound() {
+            playSound(150, 0.05, 'square');
+        }
+
+        function playClueSound() {
+            playSound(523, 0.2, 'sine');
+            setTimeout(() => playSound(659, 0.2, 'sine'), 100);
+            setTimeout(() => playSound(784, 0.3, 'sine'), 200);
+        }
+
+        function playVictorySound() {
+            const notes = [523, 587, 659, 784, 880];
+            notes.forEach((note, i) => {
+                setTimeout(() => playSound(note, 0.3, 'sine'), i * 150);
+            });
+        }
+
+        // Game state
+        let gameRunning = false;
+        let cluesCollected = 0;
+        const totalClues = 8;
+        let messageTimeout = null;
+        let walkSoundTimer = 0;
+
+        // Player
+        const player = {
+            x: 450,
+            y: 300,
+            width: 30,
+            height: 40,
+            speed: 3,
+            direction: 'down',
+            animFrame: 0,
+            animTimer: 0
+        };
+
+        // Sheepdog
+        const dog = {
+            x: player.x - 50,
+            y: player.y,
+            width: 25,
+            height: 30,
+            animFrame: 0,
+            animTimer: 0
+        };
+
+        // Clues with workplace lessons
+        const clues = [
+            { x: 150, y: 150, found: false, title: "Time Management", text: "A pocket watch inscribed: 'Punctuality shows respect for others' time and demonstrates reliability.'" },
+            { x: 750, y: 150, found: false, title: "Communication", text: "A telegram reading: 'Clear, concise communication prevents misunderstandings and saves valuable time.'" },
+            { x: 150, y: 450, found: false, title: "Teamwork", text: "A Scotland Yard badge: 'Great achievements require collaboration. No detective works alone.'" },
+            { x: 750, y: 450, found: false, title: "Initiative", text: "A magnifying glass with note: 'Don't wait for cases to come to you. Seek opportunities to contribute.'" },
+            { x: 450, y: 100, found: false, title: "Professionalism", text: "A pressed suit with tag: 'Your appearance and conduct reflect your dedication to excellence.'" },
+            { x: 450, y: 500, found: false, title: "Continuous Learning", text: "A leather-bound journal: 'Every case teaches something new. Document and learn from each experience.'" },
+            { x: 250, y: 300, found: false, title: "Problem Solving", text: "A chess piece with inscription: 'Approach challenges strategically. Think several moves ahead.'" },
+            { x: 650, y: 300, found: false, title: "Integrity", text: "A judge's gavel: 'Honesty and ethical behavior build trust and reputation over time.'" }
+        ];
+
+        // Buildings (Victorian London landmarks)
+        const buildings = [
+            { x: 50, y: 50, width: 120, height: 80, name: "Scotland Yard" },
+            { x: 730, y: 50, width: 120, height: 80, name: "Baker Street" },
+            { x: 50, y: 470, width: 120, height: 80, name: "Westminster" },
+            { x: 730, y: 470, width: 120, height: 80, name: "The Telegraph" },
+            { x: 390, y: 50, width: 120, height: 60, name: "The Times" },
+            { x: 390, y: 490, width: 120, height: 60, name: "Royal Court" }
+        ];
+
+        // Lamp posts for atmosphere
+        const lamps = [
+            { x: 300, y: 200 },
+            { x: 600, y: 200 },
+            { x: 300, y: 400 },
+            { x: 600, y: 400 }
+        ];
+
+        // Particle effects
+        const particles = [];
+
+        // Keyboard state
+        const keys = {};
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameRunning) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // Check if clicking near a clue
+            clues.forEach(clue => {
+                if (!clue.found) {
+                    const dist = Math.hypot(clickX - clue.x, clickY - clue.y);
+                    if (dist < 50) {
+                        collectClue(clue);
+                    }
+                }
+            });
+        });
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameRunning = true;
+            // Resume audio context on user interaction
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            gameLoop();
+        }
+
+        function collectClue(clue) {
+            clue.found = true;
+            cluesCollected++;
+            
+            // Update UI
+            document.getElementById('cluesFound').textContent = `Clues Found: ${cluesCollected}/${totalClues}`;
+            
+            // Show message
+            showMessage(`<strong>${clue.title}</strong><br>${clue.text}`);
+            
+            // Play sound
+            playClueSound();
+            
+            // Create particle effect
+            createParticles(clue.x, clue.y);
+            
+            // Check if all clues found
+            if (cluesCollected === totalClues) {
+                setTimeout(endGame, 2000);
+            }
+        }
+
+        function showMessage(text) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.innerHTML = text;
+            messageBox.className = 'show';
+            
+            if (messageTimeout) clearTimeout(messageTimeout);
+            messageTimeout = setTimeout(() => {
+                messageBox.className = '';
+            }, 4000);
+        }
+
+        function createParticles(x, y) {
+            const container = document.getElementById('gameContainer');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                const angle = (Math.PI * 2 * i) / 20;
+                const distance = 30 + Math.random() * 30;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                particle.style.cssText = `
+                    left: ${x}px;
+                    top: ${y}px;
+                    --tx: ${tx}px;
+                    --ty: ${ty}px;
+                `;
+                container.appendChild(particle);
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function endGame() {
+            gameRunning = false;
+            playVictorySound();
+            
+            const endScreen = document.getElementById('endScreen');
+            const finalMessage = document.getElementById('finalMessage');
+            const cluesList = document.getElementById('cluesList');
+            
+            finalMessage.textContent = `You've discovered all ${totalClues} secrets to workplace excellence! With these insights and your trusty sheepdog by your side, you're ready to become an outstanding employee.`;
+            
+            let cluesHTML = '<div style="margin-top: 20px;">';
+            clues.forEach(clue => {
+                cluesHTML += `<div class="clue-item"><strong>${clue.title}:</strong> ${clue.text}</div>`;
+            });
+            cluesHTML += '</div>';
+            cluesList.innerHTML = cluesHTML;
+            
+            endScreen.style.display = 'flex';
+        }
+
+        function updatePlayer() {
+            let moving = false;
+            let newX = player.x;
+            let newY = player.y;
+
+            if (keys['arrowup'] || keys['w']) {
+                newY -= player.speed;
+                player.direction = 'up';
+                moving = true;
+            }
+            if (keys['arrowdown'] || keys['s']) {
+                newY += player.speed;
+                player.direction = 'down';
+                moving = true;
+            }
+            if (keys['arrowleft'] || keys['a']) {
+                newX -= player.speed;
+                player.direction = 'left';
+                moving = true;
+            }
+            if (keys['arrowright'] || keys['d']) {
+                newX += player.speed;
+                player.direction = 'right';
+                moving = true;
+            }
+
+            // Boundary checking
+            if (newX > 20 && newX < canvas.width - 20 - player.width &&
+                newY > 100 && newY < canvas.height - 20 - player.height) {
+                
+                // Check building collision
+                let collision = false;
+                for (let building of buildings) {
+                    if (newX < building.x + building.width &&
+                        newX + player.width > building.x &&
+                        newY < building.y + building.height &&
+                        newY + player.height > building.y) {
+                        collision = true;
+                        break;
+                    }
+                }
+                
+                if (!collision) {
+                    player.x = newX;
+                    player.y = newY;
+                }
+            }
+
+            // Animation
+            if (moving) {
+                player.animTimer++;
+                if (player.animTimer > 10) {
+                    player.animFrame = (player.animFrame + 1) % 2;
+                    player.animTimer = 0;
+                }
+                
+                // Walk sound
+                walkSoundTimer++;
+                if (walkSoundTimer > 15) {
+                    playWalkSound();
+                    walkSoundTimer = 0;
+                }
+            } else {
+                player.animFrame = 0;
+            }
+
+            // Dog follows player with slight delay
+            const dogSpeed = 2.5;
+            const dx = player.x - 40 - dog.x;
+            const dy = player.y - dog.y;
+            const distance = Math.hypot(dx, dy);
+            
+            if (distance > 10) {
+                dog.x += (dx / distance) * dogSpeed;
+                dog.y += (dy / distance) * dogSpeed;
+                
+                dog.animTimer++;
+                if (dog.animTimer > 12) {
+                    dog.animFrame = (dog.animFrame + 1) % 2;
+                    dog.animTimer = 0;
+                }
+            }
+        }
+
+        function drawBackground() {
+            // Cobblestone street
+            ctx.fillStyle = '#3a3a3a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Cobblestone pattern
+            ctx.fillStyle = '#2a2a2a';
+            for (let y = 0; y < canvas.height; y += 20) {
+                for (let x = 0; x < canvas.width; x += 20) {
+                    if ((x + y) % 40 === 0) {
+                        ctx.fillRect(x, y, 18, 18);
+                    }
+                }
+            }
+
+            // Fog effect
+            const gradient = ctx.createRadialGradient(
+                player.x, player.y, 0,
+                player.x, player.y, 300
+            );
+            gradient.addColorStop(0, 'rgba(200, 200, 200, 0)');
+            gradient.addColorStop(1, 'rgba(100, 100, 100, 0.3)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawBuildings() {
+            buildings.forEach(building => {
+                // Building shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(building.x + 5, building.y + 5, building.width, building.height);
+                
+                // Building
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(building.x, building.y, building.width, building.height);
+                
+                // Windows
+                ctx.fillStyle = '#FFD700';
+                const windowSize = 8;
+                for (let i = 0; i < 2; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        const wx = building.x + 20 + j * 30;
+                        const wy = building.y + 15 + i * 25;
+                        ctx.fillRect(wx, wy, windowSize, windowSize);
+                        
+                        // Window glow
+                        if (Math.random() > 0.7) {
+                            ctx.fillStyle = '#FFF8DC';
+                            ctx.fillRect(wx, wy, windowSize, windowSize);
+                            ctx.fillStyle = '#FFD700';
+                        }
+                    }
+                }
+                
+                // Building outline
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(building.x, building.y, building.width, building.height);
+                
+                // Name plate
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(building.x + 10, building.y + building.height - 20, building.width - 20, 15);
+                ctx.fillStyle = '#f4d03f';
+                ctx.font = '10px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText(building.name, building.x + building.width/2, building.y + building.height - 8);
+            });
+        }
+
+        function drawLamps() {
+            lamps.forEach(lamp => {
+                // Lamp post
+                ctx.fillStyle = '#2c2c2c';
+                ctx.fillRect(lamp.x - 3, lamp.y, 6, 60);
+                
+                // Lamp
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(lamp.x, lamp.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Glow
+                const gradient = ctx.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, 40);
+                gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+                gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(lamp.x, lamp.y, 40, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawClues() {
+            clues.forEach(clue => {
+                if (!clue.found) {
+                    // Glow effect
+                    const time = Date.now() / 1000;
+                    const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+                    
+                    const gradient = ctx.createRadialGradient(clue.x, clue.y, 0, clue.x, clue.y, 25);
+                    gradient.addColorStop(0, `rgba(255, 215, 0, ${pulse})`);
+                    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(clue.x, clue.y, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Clue icon (scroll)
+                    ctx.fillStyle = '#f4d03f';
+                    ctx.fillRect(clue.x - 8, clue.y - 10, 16, 20);
+                    ctx.fillStyle = '#d4af37';
+                    ctx.fillRect(clue.x - 6, clue.y - 8, 12, 16);
+                    
+                    // Sparkle
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(clue.x - 1, clue.y - 12 + Math.sin(time * 5) * 2, 2, 2);
+                }
+            });
+        }
+
+        function drawPlayer() {
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(player.x + player.width/2, player.y + player.height + 2, 
+                       player.width/2, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Detective (simple representation)
+            // Body
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(player.x + 7, player.y + 15, 16, 20);
+            
+            // Head
+            ctx.fillStyle = '#f5cba7';
+            ctx.fillRect(player.x + 10, player.y + 5, 10, 12);
+            
+            // Hat
+            ctx.fillStyle = '#1c1c1c';
+            ctx.fillRect(player.x + 8, player.y + 2, 14, 6);
+            ctx.fillRect(player.x + 6, player.y, 18, 3);
+            
+            // Coat tails
+            ctx.fillStyle = '#34495e';
+            if (player.animFrame === 1) {
+                ctx.fillRect(player.x + 5, player.y + 30, 6, 8);
+                ctx.fillRect(player.x + 19, player.y + 30, 6, 8);
+            } else {
+                ctx.fillRect(player.x + 6, player.y + 30, 5, 8);
+                ctx.fillRect(player.x + 19, player.y + 30, 5, 8);
+            }
+            
+            // Legs
+            ctx.fillStyle = '#2c3e50';
+            if (player.animFrame === 1) {
+                ctx.fillRect(player.x + 8, player.y + 33, 5, 7);
+                ctx.fillRect(player.x + 17, player.y + 33, 5, 7);
+            } else {
+                ctx.fillRect(player.x + 9, player.y + 33, 5, 7);
+                ctx.fillRect(player.x + 16, player.y + 33, 5, 7);
+            }
+            
+            // Magnifying glass
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x + 25, player.y + 20, 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(player.x + 27, player.y + 23);
+            ctx.lineTo(player.x + 30, player.y + 26);
+            ctx.stroke();
+        }
+
+        function drawDog() {
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(dog.x + dog.width/2, dog.y + dog.height + 2, 
+                       dog.width/2, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Sheepdog body
+            ctx.fillStyle = '#d3d3d3';
+            ctx.fillRect(dog.x + 5, dog.y + 12, 15, 12);
+            
+            // Head
+            ctx.fillStyle = '#d3d3d3';
+            ctx.fillRect(dog.x + 8, dog.y + 6, 10, 10);
+            
+            // Ears
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(dog.x + 6, dog.y + 7, 3, 5);
+            ctx.fillRect(dog.x + 16, dog.y + 7, 3, 5);
+            
+            // Legs
+            ctx.fillStyle = '#c0c0c0';
+            if (dog.animFrame === 1) {
+                ctx.fillRect(dog.x + 6, dog.y + 22, 3, 6);
+                ctx.fillRect(dog.x + 16, dog.y + 22, 3, 6);
+            } else {
+                ctx.fillRect(dog.x + 7, dog.y + 22, 3, 6);
+                ctx.fillRect(dog.x + 15, dog.y + 22, 3, 6);
+            }
+            
+            // Tail wagging
+            const tailWag = Math.sin(Date.now() / 100) * 3;
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(dog.x + 19 + tailWag, dog.y + 14, 2, 6);
+            
+            // Nose
+            ctx.fillStyle = '#1c1c1c';
+            ctx.fillRect(dog.x + 8, dog.y + 13, 2, 2);
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update
+            updatePlayer();
+            
+            // Draw
+            drawBackground();
+            drawBuildings();
+            drawLamps();
+            drawClues();
+            drawDog();
+            drawPlayer();
+            
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
